@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>জন্মদিন পাজল - হাসান</title>
+    <style>
+        :root {
+            --bg: #0b0e14;
+            --cell-bg: #1c2128;
+            --accent: #ffcc00;
+            --success: #238636;
+            --text: #adbac7;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            text-align: center;
+            width: 90%;
+            max-width: 360px;
+        }
+
+        h2 { color: var(--accent); margin-bottom: 5px; font-size: 1.5rem; }
+        .info { font-size: 0.8rem; margin-bottom: 15px; color: #768390; }
+
+        /* পাজল বোর্ড */
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 4px;
+            background: #22272e;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #444c56;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        .cell {
+            aspect-ratio: 1/1;
+            background: var(--cell-bg);
+            border: 1px solid #444c56;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            border-radius: 3px;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .cell.selected { background: var(--success); color: white; border-color: #3fb950; }
+
+        /* শব্দ তালিকা */
+        .word-list {
+            margin-top: 15px;
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .word-item {
+            padding: 4px 10px;
+            background: #2d333b;
+            border-radius: 12px;
+            font-size: 11px;
+            color: #768390;
+        }
+
+        .word-item.found { background: var(--success); color: white; text-decoration: line-through; }
+
+        /* উইশ বক্স */
+        #wish-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 14, 20, 0.98);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            text-align: center;
+        }
+
+        .wish-box h1 { font-size: 2rem; color: var(--accent); margin-bottom: 10px; }
+        .wish-box p { font-size: 1rem; color: #fff; padding: 0 20px; line-height: 1.6; }
+
+        footer {
+            margin-top: 25px;
+            color: #444c56;
+            font-size: 12px;
+            letter-spacing: 1.5px;
+        }
+        .hasan { color: #2ea043; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Birthday Puzzle 🧩</h2>
+        <p class="info">লুকানো শব্দগুলো খুঁজে বের করুন!</p>
+        
+        <div id="grid"></div>
+        <div class="word-list" id="word-list-ui"></div>
+
+        <footer>Developed by <span class="hasan">Hasan</span></footer>
+    </div>
+
+    <div id="wish-overlay">
+        <div class="wish-box">
+            <h1>শুভ জন্মদিন! 🎂</h1>
+            <p>সাবাস! আপনি অত্যন্ত দক্ষতার সাথে সবকটি শব্দ খুঁজে বের করেছেন।<br>
+            আপনার জীবনের আগামী দিনগুলো এমন সব চমৎকার জয়ে ভরে উঠুক।</p>
+            <button onclick="location.reload()" style="margin-top: 25px; padding: 10px 25px; background: var(--accent); border: none; border-radius: 20px; font-weight: bold; cursor: pointer;">নতুন পাজল খেলুন</button>
+        </div>
+    </div>
+
+    <script>
+        const size = 10;
+        // বড় একটি পুল যেখান থেকে প্রতিবার ৫টি র্যান্ডম শব্দ আসবে
+        const wordPool = ["CAKE", "GIFT", "WISH", "PARTY", "LOVE", "SMILE", "JOY", "SWEET", "DREAM", "LIGHT", "MAGIC", "FRIEND", "CELEBRATE", "HAPPY", "KIND"];
+        
+        // প্রতিবার ইউনিক ৫টি শব্দ সিলেক্ট করা
+        const selectedWords = wordPool.sort(() => 0.5 - Math.random()).slice(0, 5);
+        
+        let grid = Array(size).fill().map(() => Array(size).fill(''));
+        let foundCount = 0;
+        const progress = {};
+        selectedWords.forEach(w => progress[w] = 0);
+
+        function fillGrid() {
+            selectedWords.forEach(word => {
+                let placed = false;
+                let tries = 0;
+                while (!placed && tries < 150) {
+                    let isVert = Math.random() > 0.5;
+                    let r = Math.floor(Math.random() * (isVert ? size - word.length : size));
+                    let c = Math.floor(Math.random() * (isVert ? size : size - word.length));
+
+                    let clear = true;
+                    for (let i = 0; i < word.length; i++) {
+                        if (grid[r + (isVert ? i : 0)][c + (isVert ? 0 : i)] !== '') {
+                            clear = false; break;
+                        }
+                    }
+
+                    if (clear) {
+                        for (let i = 0; i < word.length; i++) {
+                            grid[r + (isVert ? i : 0)][c + (isVert ? 0 : i)] = { char: word[i], word: word };
+                        }
+                        placed = true;
+                    }
+                    tries++;
+                }
+            });
+
+            // বাকি খালি ঘরে র্যান্ডম অক্ষর
+            for(let r=0; r<size; r++) {
+                for(let c=0; c<size; c++) {
+                    if(grid[r][c] === '') grid[r][c] = {char: String.fromCharCode(65 + Math.floor(Math.random()*26)), word: null};
+                }
+            }
+        }
+
+        function createUI() {
+            fillGrid();
+            const gridDiv = document.getElementById('grid');
+            const listDiv = document.getElementById('word-list-ui');
+
+            grid.forEach((row, r) => {
+                row.forEach((obj, c) => {
+                    const el = document.createElement('div');
+                    el.className = 'cell';
+                    el.innerText = obj.char;
+                    el.onclick = () => {
+                        if(obj.word && !el.classList.contains('selected')) {
+                            el.classList.add('selected');
+                            progress[obj.word]++;
+                            if(progress[obj.word] === obj.word.length) {
+                                document.getElementById('item-' + obj.word).classList.add('found');
+                                foundCount++;
+                                if(foundCount === selectedWords.length) {
+                                    setTimeout(() => document.getElementById('wish-overlay').style.display = 'flex', 400);
+                                }
+                            }
+                        }
+                    };
+                    gridDiv.appendChild(el);
+                });
+            });
+
+            selectedWords.forEach(w => {
+                const s = document.createElement('span');
+                s.className = 'word-item';
+                s.id = 'item-' + w;
+                s.innerText = w;
+                listDiv.appendChild(s);
+            });
+        }
+
+        createUI();
+    </script>
+</body>
+  </html>
